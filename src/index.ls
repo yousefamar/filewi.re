@@ -1,4 +1,6 @@
-require! { d3, 'webtorrent': WebTorrent, 'node-uuid': uuid }
+require! { querystring, d3, 'webtorrent': WebTorrent, 'node-uuid': uuid }
+
+const NODE_RADIUS = 64px
 
 width  = window.inner-width
 height = window.inner-height
@@ -24,16 +26,34 @@ svg = d3.select \body
   .style \margin  0
   .style \padding 0
   .append \svg:svg
+  .style \background-color \#030c22
 
-svg.select-all \circle
+load-flag = (ip) !->
+  svg.append \defs
+    .append \pattern
+      ..
+        .attr \id ip
+        .attr \width  64
+        .attr \height 64
+      ..append \svg:rect
+        .attr \width  2 * NODE_RADIUS
+        .attr \height 2 * NODE_RADIUS
+        .style \fill \#20293f
+      ..append \svg:image
+        .attr \width  2 * NODE_RADIUS
+        .attr \height 2 * NODE_RADIUS
+        .attr \xlink:href "flag?ip=#ip"
+
+svg.select-all \.node
   .data nodes
-  .enter!.insert \svg:circle
-  .style \fill \blue
-  .attr \r 0
-  .transition!
-  .duration 1000
-  .ease \elastic
-  .attr \r -> it.radius - 2
+    .enter!.insert \svg:circle
+    .attr \class \node
+    .attr \r 0
+    .style \fill \#e0d498
+    .transition!
+      .duration 1000
+      .ease \elastic
+      .attr \r -> it.radius
 
 force = d3.layout.force!
   .charge (d, i) -> if i then -500 else -10000
@@ -42,38 +62,43 @@ force = d3.layout.force!
   .links links
 
 refresh = !->
-  svg.select-all \line .data links
+  svg.select-all \.link .data links
     ..exit!
       .transition!.remove!
         .duration 500ms
         .style \stroke-width 0px
-    ..enter!.insert \svg:line \circle
-      .style \stroke \grey
+    ..enter!.insert \svg:line \.node
+      .attr \class \link
+      .style \stroke \#e5e7e8
       .style \stroke-width 0px
       .transition!
         .duration 100ms
         .style \stroke-width 10px
 
-  svg.select-all \circle .data nodes
+  svg.select-all \.node .data nodes
     ..exit!
       .transition!.remove!
         .duration 1000ms
         .attr \r 0px
     ..enter!.insert \svg:circle
-      .style \fill \red
+      .attr \class \node
+      .style \fill -> "url(##{it.ip})"
       .attr \r 0px
         .transition!
           .duration 1000
           .ease \elastic
-          .attr \r -> it.radius - 2px
+          .attr \r -> it.radius
 
   force.start!
 
 window.add-peer = add-peer = !->
+  load-flag it.ip
+
   it
     ..x = Math.random! * 0.5 * width  + 0.25 * width
     ..y = Math.random! * 0.5 * height + 0.25 * height
-    ..radius = 50px
+    ..radius = NODE_RADIUS
+    ..ip = it.ip
 
   nodes.push it
   links.push source: root, target: it
@@ -93,13 +118,13 @@ onresize!
 force.start!
 
 force.on \tick ->
-  svg.select-all \line
+  svg.select-all \.link
     .attr \x1 -> it.source.x
     .attr \y1 -> it.source.y
     .attr \x2 -> it.target.x
     .attr \y2 -> it.target.y
 
-  svg.select-all \circle
+  svg.select-all \.node
     .attr \cx -> it.x
     .attr \cy -> it.y
 
@@ -107,7 +132,7 @@ client = new WebTorrent!
 hash = \951877bb4136451d079bde655ebbadc36190721e
 
 client.add hash, (torrent) !->
-  for wire of torrent.swarm.wires
+  for wire in torrent.swarm.wires
     peer = id: uuid.v4!, ip: wire.remote-address
     wire.peer = peer
     add-peer peer
@@ -120,3 +145,10 @@ client.add hash, (torrent) !->
 
   #torrent.files.for-each !->
   #  it.append-to \body
+
+
+export get = (url, data, callback) !->
+  xhr = new XMLHttpRequest!
+  xhr.onload = !-> callback @response
+  xhr.open \GET url + '?' + querystring.stringify data
+  xhr.send!

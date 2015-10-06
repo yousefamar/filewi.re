@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "express": "^4.13.3",
+    "geoip-lite": "^1.1.6",
     "livescript": "^1.4.0"
   }
 }
