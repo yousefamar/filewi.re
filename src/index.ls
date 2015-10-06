@@ -1,29 +1,41 @@
 require! { d3, 'webtorrent': WebTorrent }
 
+width  = window.inner-width
+height = window.inner-height
+
+window.add-event-listener \resize onresize = !->
+  width  := window.inner-width
+  height := window.inner-height
+  svg
+    .attr \width  width
+    .attr \height height
+  force.size [ width, height ]
+  force.start!
+
 nodes = [{}]
 links = []
 
 root = nodes[0]
-  ..x = 0.5 * window.inner-width
-  ..y = 0.5 * window.inner-height
+  ..x = 0.5 * width
+  ..y = 0.5 * height
   ..radius = 100px
-  ..fixed = true
 
 svg = d3.select \body
   .style \margin  0
   .style \padding 0
   .append \svg:svg
-  .attr \width  window.inner-width
-  .attr \height window.inner-height
 
 svg.select-all \circle
   .data nodes
   .enter!.insert \svg:circle
-  .attr \r -> it.radius - 2
   .style \fill \blue
+  .attr \r 0
+  .transition!
+  .duration 1000
+  .ease \elastic
+  .attr \r -> it.radius - 2
 
 force = d3.layout.force!
-  .size [window.inner-width, window.inner-height]
   .charge (d, i) -> if i then -500 else -10000
   .link-strength 0.1
   .nodes nodes
@@ -31,8 +43,8 @@ force = d3.layout.force!
 
 window.add-peer = add-peer = ->
   it
-    ..x = Math.random! * 0.5 * window.inner-width  + 0.25 * window.inner-width
-    ..y = Math.random! * 0.5 * window.inner-height + 0.25 * window.inner-height
+    ..x = Math.random! * 0.5 * width  + 0.25 * width
+    ..y = Math.random! * 0.5 * height + 0.25 * height
     ..radius = 50px
 
   nodes.push it
@@ -47,11 +59,16 @@ window.add-peer = add-peer = ->
   svg.select-all \circle
     .data nodes
     .enter!.insert \svg:circle
-    .attr \r -> it.radius - 2
     .style \fill \red
+    .attr \r 0
+      .transition!
+        .duration 1000
+        .ease \elastic
+        .attr \r -> it.radius - 2
 
   force.start!
 
+onresize!
 force.start!
 
 force.on \tick ->
