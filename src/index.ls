@@ -1,4 +1,4 @@
-require! { d3, 'webtorrent': WebTorrent }
+require! { d3, 'webtorrent': WebTorrent, 'node-uuid': uuid }
 
 width  = window.inner-width
 height = window.inner-height
@@ -41,7 +41,35 @@ force = d3.layout.force!
   .nodes nodes
   .links links
 
-window.add-peer = add-peer = ->
+refresh = !->
+  svg.select-all \line .data links
+    ..exit!
+      .transition!.remove!
+        .duration 500ms
+        .style \stroke-width 0px
+    ..enter!.insert \svg:line \circle
+      .style \stroke \grey
+      .style \stroke-width 0px
+      .transition!
+        .duration 100ms
+        .style \stroke-width 10px
+
+  svg.select-all \circle .data nodes
+    ..exit!
+      .transition!.remove!
+        .duration 1000ms
+        .attr \r 0px
+    ..enter!.insert \svg:circle
+      .style \fill \red
+      .attr \r 0px
+        .transition!
+          .duration 1000
+          .ease \elastic
+          .attr \r -> it.radius - 2px
+
+  force.start!
+
+window.add-peer = add-peer = !->
   it
     ..x = Math.random! * 0.5 * width  + 0.25 * width
     ..y = Math.random! * 0.5 * height + 0.25 * height
@@ -50,23 +78,16 @@ window.add-peer = add-peer = ->
   nodes.push it
   links.push source: root, target: it
 
-  svg.select-all \line
-    .data links
-    .enter!.insert \svg:line \circle
-    .style \stroke-width -> 10px
-    .style \stroke -> \grey
+  refresh!
 
-  svg.select-all \circle
-    .data nodes
-    .enter!.insert \svg:circle
-    .style \fill \red
-    .attr \r 0
-      .transition!
-        .duration 1000
-        .ease \elastic
-        .attr \r -> it.radius - 2
+window.remove-peer = remove-peer = !->
+  return unless ~(i = nodes.index-of it)
+  nodes.splice i, 1
+  for link, i in links
+    if link.target is it
+      links.splice i, 1
 
-  force.start!
+  refresh!
 
 onresize!
 force.start!
@@ -82,11 +103,20 @@ force.on \tick ->
     .attr \cx -> it.x
     .attr \cy -> it.y
 
-/*
 client = new WebTorrent!
-hash = \da40fb70e29f1fc659cd21848ff7d431ff48feb8
+hash = \951877bb4136451d079bde655ebbadc36190721e
 
 client.add hash, (torrent) !->
-  torrent.files.for-each !->
-    it.append-to \body
-*/
+  for wire of torrent.swarm.wires
+    peer = id: uuid.v4!, ip: wire.remote-address
+    wire.peer = peer
+    add-peer peer
+  torrent.on \wire (wire, addr) !->
+    peer = id: uuid.v4!, ip: addr
+    wire.peer = peer
+    add-peer peer
+    wire.once \close !->
+      remove-peer wire.peer
+
+  #torrent.files.for-each !->
+  #  it.append-to \body
