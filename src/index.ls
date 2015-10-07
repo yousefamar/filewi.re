@@ -1,4 +1,4 @@
-require! { querystring, d3, 'webtorrent': WebTorrent, 'node-uuid': uuid }
+require! { querystring, d3, 'webtorrent': WebTorrent, 'node-uuid': uuid, jade }
 
 const NODE_RADIUS = 64px
 
@@ -21,10 +21,13 @@ root = nodes[0]
   ..x = 0.5 * width
   ..y = 0.5 * height
   ..radius = 100px
+  ..progress-angle = 0
 
 svg = d3.select \body
   .style \margin  0
   .style \padding 0
+  .style \width   \100%
+  .style \height  \100%
   .append \svg:svg
   .style \background-color \#030c22
 
@@ -36,24 +39,49 @@ load-flag = (ip) !->
         .attr \width  64
         .attr \height 64
       ..append \svg:rect
-        .attr \width  2 * NODE_RADIUS
-        .attr \height 2 * NODE_RADIUS
+        .attr \width  2.5 * NODE_RADIUS
+        .attr \height 2.5 * NODE_RADIUS
         .style \fill \#20293f
       ..append \svg:image
         .attr \width  2 * NODE_RADIUS
         .attr \height 2 * NODE_RADIUS
         .attr \xlink:href "flag?ip=#ip"
 
+
+arc = d3.svg.arc!
+  .inner-radius 95px
+  .outer-radius 110px
+  .start-angle  0rad
+
+require! './templates/stats.jade'
+
 svg.select-all \.node
   .data nodes
-    .enter!.insert \svg:circle
-    .attr \class \node
-    .attr \r 0
-    .style \fill \#e0d498
-    .transition!
-      .duration 1000
-      .ease \elastic
-      .attr \r -> it.radius
+    .enter!.insert \svg:g
+      ..
+        .attr \class \node
+      ..append \svg:g
+        ..
+          .attr \transform 'scale(0)'
+          .transition!
+            .duration 1000
+            .ease \elastic
+            .attr \transform 'scale(1)'
+        ..append \svg:path
+          .attr \fill \green
+          .attr \d arc end-angle: 0
+        ..append \svg:circle
+          .attr \r -> it.radius
+          .style \fill \#e0d498
+        ..append \foreignObject
+          .attr \x -100px
+          .attr \y -100px
+          .attr \width  200px
+          .attr \height 200px
+          .append \xhtml:body
+            .style \height \100%
+            .html stats!
+
 
 force = d3.layout.force!
   .charge (d, i) -> if i then -500 else -10000
@@ -80,14 +108,16 @@ refresh = !->
       .transition!.remove!
         .duration 1000ms
         .attr \r 0px
-    ..enter!.insert \svg:circle
-      .attr \class \node
-      .style \fill -> "url(##{it.ip})"
-      .attr \r 0px
-        .transition!
-          .duration 1000
-          .ease \elastic
-          .attr \r -> it.radius
+    ..enter!.insert \svg:g
+      ..
+        .attr \class \node
+      ..append \svg:circle
+        .style \fill -> "url(##{it.ip})"
+        .attr \r 0px
+          .transition!
+            .duration 1000
+            .ease \elastic
+            .attr \r -> it.radius
 
   force.start!
 
@@ -125,11 +155,39 @@ force.on \tick ->
     .attr \y2 -> it.target.y
 
   svg.select-all \.node
-    .attr \cx -> it.x
-    .attr \cy -> it.y
+    .attr \transform -> "translate(#{it.x}, #{it.y})"
+
+hash = window.location.pathname.substr 1
 
 client = new WebTorrent!
-hash = \951877bb4136451d079bde655ebbadc36190721e
+
+
+bytes-to-human = do ->
+  units = <[ bytes kB MB GB TB PB ]>
+  (bytes) ->
+    return \0 unless bytes
+    e = Math.floor (Math.log bytes) / Math.log 1024
+    ((bytes / Math.pow 1024, e).to-fixed 2)  + ' ' + units[e] + '\/s'
+
+tween-progress = (transition, progress) !->
+  transition.attr-tween \d (d) ->
+    interpolate = d3.interpolate d.progress-angle, progress * 2 * Math.PI
+    (t) ->
+      d.progress-angle = interpolate t
+      arc end-angle: d.progress-angle
+
+blob-URL = null
+
+on-download-complete = (file) !->
+  d3.select \#download-speed .text 0
+  d3.select \#buttons
+    .style \display \inline
+
+  file.get-blob-URL (err, url) !->
+    if (err)
+      alert err
+      return
+    blob-URL := url
 
 client.add hash, (torrent) !->
   for wire in torrent.swarm.wires
@@ -143,12 +201,29 @@ client.add hash, (torrent) !->
     wire.once \close !->
       remove-peer wire.peer
 
+  torrent.swarm.on \download !->
+    svg.select \.node .select \path
+      .transition!
+        .call tween-progress, torrent.progress
+
+    d3.select \#download-speed .text bytes-to-human client.download-speed!
+
+    if torrent.progress is 1
+      on-download-complete torrent.files[0]
+
+    #console.log torrent.pieces
+
+  torrent.swarm.on \upload   !->
+    d3.select \#upload-speed   .text bytes-to-human client.upload-speed!
+
+  d3.select \#preview-button .on \click ->
+    alert 'Coming soon!'
+
+  d3.select \#download-button .on \click ->
+    unless blob-URL?
+      alert 'Something went wrong with the download! Please refresh and try again.'
+      return
+    window.open blob-URL
+
   #torrent.files.for-each !->
   #  it.append-to \body
-
-
-export get = (url, data, callback) !->
-  xhr = new XMLHttpRequest!
-  xhr.onload = !-> callback @response
-  xhr.open \GET url + '?' + querystring.stringify data
-  xhr.send!

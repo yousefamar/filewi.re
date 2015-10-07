@@ -4,7 +4,7 @@
   "description": "P2P file sharing on the web",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "watchify -d --verbose -t browserify-livescript -g uglifyify -o build/index.min.js src/index.ls",
+    "watch": "watchify -d --verbose -t browserify-livescript -t jadeify -g uglifyify -o build/index.min.js src/index.ls",
     "start": "lsc server.ls"
   },
   "repository": {
@@ -29,8 +29,11 @@
   },
   "homepage": "https://github.com/Paraknight/filewi.re#readme",
   "devDependencies": {
+    "browserify": "^11.2.0",
     "browserify-livescript": "^0.2.3",
     "d3": "^3.5.6",
+    "jade": "^1.11.0",
+    "jadeify": "^4.4.0",
     "node-uuid": "^1.4.3",
     "uglifyify": "^3.0.1",
     "watchify": "^3.4.0",
