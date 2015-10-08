@@ -1,4 +1,4 @@
-require! { querystring, d3, 'webtorrent': WebTorrent, 'node-uuid': uuid, jade }
+require! { querystring, d3, 'webtorrent': WebTorrent, dropzone: Dropzone, 'node-uuid': uuid, jade }
 
 const NODE_RADIUS = 64px
 
@@ -28,6 +28,7 @@ svg = d3.select \body
   .style \padding 0
   .style \width   \100%
   .style \height  \100%
+  .style \overflow \hidden
   .append \svg:svg
   .style \background-color \#030c22
 
@@ -53,8 +54,6 @@ arc = d3.svg.arc!
   .outer-radius 110px
   .start-angle  0rad
 
-require! './templates/stats.jade'
-
 svg.select-all \.node
   .data nodes
     .enter!.insert \svg:g
@@ -79,8 +78,8 @@ svg.select-all \.node
           .attr \width  200px
           .attr \height 200px
           .append \xhtml:body
+            .attr \id \root-body
             .style \height \100%
-            .html stats!
 
 
 force = d3.layout.force!
@@ -161,13 +160,12 @@ hash = window.location.pathname.substr 1
 
 client = new WebTorrent!
 
-
 bytes-to-human = do ->
   units = <[ bytes kB MB GB TB PB ]>
   (bytes) ->
     return \0 unless bytes
     e = Math.floor (Math.log bytes) / Math.log 1024
-    ((bytes / Math.pow 1024, e).to-fixed 2)  + ' ' + units[e] + '\/s'
+    ((bytes / Math.pow 1024, e).to-fixed 2)  + ' ' + units[e]
 
 tween-progress = (transition, progress) !->
   transition.attr-tween \d (d) ->
@@ -176,20 +174,7 @@ tween-progress = (transition, progress) !->
       d.progress-angle = interpolate t
       arc end-angle: d.progress-angle
 
-blob-URL = null
-
-on-download-complete = (file) !->
-  d3.select \#download-speed .text 0
-  d3.select \#buttons
-    .style \display \inline
-
-  file.get-blob-URL (err, url) !->
-    if (err)
-      alert err
-      return
-    blob-URL := url
-
-client.add hash, (torrent) !->
+on-torrent = (torrent) !->
   for wire in torrent.swarm.wires
     peer = id: uuid.v4!, ip: wire.remote-address
     wire.peer = peer
@@ -206,7 +191,7 @@ client.add hash, (torrent) !->
       .transition!
         .call tween-progress, torrent.progress
 
-    d3.select \#download-speed .text bytes-to-human client.download-speed!
+    d3.select \#download-speed .text (bytes-to-human client.download-speed!) + '\/s'
 
     if torrent.progress is 1
       on-download-complete torrent.files[0]
@@ -214,7 +199,7 @@ client.add hash, (torrent) !->
     #console.log torrent.pieces
 
   torrent.swarm.on \upload   !->
-    d3.select \#upload-speed   .text bytes-to-human client.upload-speed!
+    d3.select \#upload-speed   .text (bytes-to-human client.upload-speed!) + '\/s'
 
   d3.select \#preview-button .on \click ->
     alert 'Coming soon!'
@@ -223,7 +208,58 @@ client.add hash, (torrent) !->
     unless blob-URL?
       alert 'Something went wrong with the download! Please refresh and try again.'
       return
-    window.open blob-URL
+    document.create-element \a
+      ..download = filename
+      ..href = blob-URL
+      ..click!
 
   #torrent.files.for-each !->
   #  it.append-to \body
+
+
+require! './templates/stats.jade'
+
+unless hash.match /\b([0-9a-f]{40})\b/
+  require! './templates/upload.jade'
+
+  d3.select \#root-body .html upload!
+
+  new Dropzone \div#upload do
+    url: \#
+    accept: ->
+    addedfile: !->
+      d3.select \#root-body .html stats!
+      d3.select \#speeds .style \margin-top \32px
+      d3.select \#preview .style \display \inline
+      d3.select \#filename .text it.name
+      d3.select \#filesize .text bytes-to-human it.size
+      client.seed it, !->
+        window.history.replace-state {}, 'Info Hash', "/#{it.infoHash}"
+        on-torrent it
+
+    thumbnail-width: null
+
+    thumbnail: (file, data) !->
+      d3.select \#thumbnail
+        .style \background-image "url('#data')"
+
+else
+  d3.select \#root-body .html stats!
+
+  filename = ''
+  blob-URL = null
+
+  on-download-complete = (file) !->
+    d3.select \#download-speed .text 0
+    d3.select \#buttons
+      .style \display \inline
+
+    filename := file.name
+
+    file.get-blob-URL (err, url) !->
+      if (err)
+        alert err
+        return
+      blob-URL := url
+
+  client.add hash, on-torrent

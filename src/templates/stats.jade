@@ -1,6 +1,12 @@
 style.
 	@import url(https://fonts.googleapis.com/css?family=Share+Tech);
 	@import url(https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css);
+	* {
+		color: #030c22;
+	}
+	p {
+		margin: 0;
+	}
 	.centered {
 		width: 100%;
 		height: 100%;
@@ -36,8 +42,24 @@ style.
 		border-radius: 32px;
 		cursor: pointer;
 	}
-div(class='centered')
-	p
+	#preview {
+		display: none;
+		width: 100%;
+		text-align: center;
+		font-family: 'Share Tech', sans-serif;
+	}
+	#thumbnail {
+		width: 64px;
+		height: 64px;
+		margin: auto;
+		overflow: hidden;
+		background-size: contain;
+		background-position: center;
+		background-repeat: no-repeat;
+		background-image: url('/res/favicon.svg');
+	}
+div.centered
+	p#speeds
 		span.speed-label Up:
 		span.speed#upload-speed 0
 		br
@@ -48,3 +70,8 @@ div(class='centered')
 			i.fa.fa-eye
 		div#download-button.button
 			i.fa.fa-download
+	div#preview
+		div#thumbnail
+		div#fileinfo
+			div#filename
+			div#filesize
