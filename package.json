@@ -4,7 +4,7 @@
   "description": "P2P file sharing on the web",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "watchify -d --verbose -t browserify-livescript -t jadeify -g uglifyify -o build/index.min.js src/index.ls",
+    "watch": "watchify --verbose -t browserify-livescript -t jadeify -g uglifyify -o build/index.min.js src/index.ls",
     "start": "lsc server.ls"
   },
   "repository": {
