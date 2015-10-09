@@ -199,6 +199,8 @@ on-torrent = (torrent) !->
     peer = id: uuid.v4!, ip: wire.remote-address
     wire.peer = peer
     add-peer peer
+    wire.once \close !->
+      remove-peer wire.peer
 
   torrent.on \wire (wire, addr) !->
     peer = id: uuid.v4!, ip: addr
