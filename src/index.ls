@@ -200,9 +200,6 @@ on-torrent = (torrent) !->
     wire.peer = peer
     add-peer peer
 
-  chunks := torrent.pieces.map (piece, id) -> id: id, gotten: false
-  refresh-chunks!
-
   torrent.on \wire (wire, addr) !->
     peer = id: uuid.v4!, ip: addr
     wire.peer = peer
@@ -291,4 +288,7 @@ else
         return
       blob-URL := url
 
-  client.add hash, on-torrent
+  client.add hash, !->
+    chunks := it.pieces.map (piece, id) -> id: id, gotten: false
+    refresh-chunks!
+    on-torrent it
