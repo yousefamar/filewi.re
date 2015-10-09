@@ -16,6 +16,7 @@ window.add-event-listener \resize onresize = !->
 
 nodes = [{}]
 links = []
+chunks = []
 
 root = nodes[0]
   ..x = 0.5 * width
@@ -49,15 +50,20 @@ load-flag = (ip) !->
         .attr \xlink:href "flag?ip=#ip"
 
 
-arc = d3.svg.arc!
-  .inner-radius 95px
-  .outer-radius 110px
+progress-arc = d3.svg.arc!
+  .inner-radius 105px
+  .outer-radius 120px
   .start-angle  0rad
+
+chunk-arc = d3.svg.arc!
+  .inner-radius 100px
+  .outer-radius 105px
 
 svg.select-all \.node
   .data nodes
-    .enter!.insert \svg:g
+    .enter!.append \svg:g
       ..
+        .attr \id \root-node
         .attr \class \node
       ..append \svg:g
         ..
@@ -68,7 +74,7 @@ svg.select-all \.node
             .attr \transform 'scale(1)'
         ..append \svg:path
           .attr \fill \green
-          .attr \d arc end-angle: 0
+          .attr \d progress-arc end-angle: 0
         ..append \svg:circle
           .attr \r -> it.radius
           .style \fill \#e0d498
@@ -84,7 +90,7 @@ svg.select-all \.node
 
 force = d3.layout.force!
   .charge (d, i) -> if i then -500 else -10000
-  .link-strength 0.1
+  .link-strength 0.01
   .nodes nodes
   .links links
 
@@ -107,7 +113,7 @@ refresh = !->
       .transition!.remove!
         .duration 1000ms
         .attr \r 0px
-    ..enter!.insert \svg:g
+    ..enter!.append \svg:g
       ..
         .attr \class \node
       ..append \svg:circle
@@ -119,6 +125,20 @@ refresh = !->
             .attr \r -> it.radius
 
   force.start!
+
+refresh-chunks = !->
+  svg.select \#root-node .select-all \.chunk
+    .data chunks
+      ..
+        .transition!
+          .attr \fill -> if it.gotten then \#f5a873 else \#20293f
+      ..enter!.append \svg:path
+        .attr \class \chunk
+        .attr \d -> chunk-arc start-angle: 2 * Math.PI * it.id / chunks.length, end-angle: 2 * Math.PI * (it.id + 1) / chunks.length
+        .attr \fill -> if it.gotten then \#f5a873 else \#20293f
+        .attr \fill-opacity 0
+        .transition!
+          .attr \fill-opacity 1
 
 window.add-peer = add-peer = !->
   load-flag it.ip
@@ -172,13 +192,17 @@ tween-progress = (transition, progress) !->
     interpolate = d3.interpolate d.progress-angle, progress * 2 * Math.PI
     (t) ->
       d.progress-angle = interpolate t
-      arc end-angle: d.progress-angle
+      progress-arc end-angle: d.progress-angle
 
 on-torrent = (torrent) !->
   for wire in torrent.swarm.wires
     peer = id: uuid.v4!, ip: wire.remote-address
     wire.peer = peer
     add-peer peer
+
+  chunks := torrent.pieces.map (piece, id) -> id: id, gotten: false
+  refresh-chunks!
+
   torrent.on \wire (wire, addr) !->
     peer = id: uuid.v4!, ip: addr
     wire.peer = peer
@@ -194,9 +218,14 @@ on-torrent = (torrent) !->
     d3.select \#download-speed .text (bytes-to-human client.download-speed!) + '\/s'
 
     if torrent.progress is 1
+      chunks.for-each !-> it.gotten = true
       on-download-complete torrent.files[0]
+      refresh-chunks!
+      return
 
-    #console.log torrent.pieces
+    chunks.for-each (piece, id) !-> unless torrent.pieces[id]? then piece.gotten = true
+
+    refresh-chunks!
 
   torrent.swarm.on \upload   !->
     d3.select \#upload-speed   .text (bytes-to-human client.upload-speed!) + '\/s'
