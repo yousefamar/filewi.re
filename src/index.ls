@@ -1,4 +1,4 @@
-require! { querystring, d3, 'webtorrent': WebTorrent, dropzone: Dropzone, 'node-uuid': uuid, jade }
+require! { querystring, d3, 'webtorrent': WebTorrent, dropzone: Dropzone, 'node-uuid': uuid, jade, speedometer }
 
 const NODE_RADIUS = 64px
 
@@ -59,6 +59,10 @@ chunk-arc = d3.svg.arc!
   .inner-radius 100px
   .outer-radius 105px
 
+peer-chunk-arc = d3.svg.arc!
+  .inner-radius 64px
+  .outer-radius 67px
+
 svg.select-all \.node
   .data nodes
     .enter!.append \svg:g
@@ -68,10 +72,10 @@ svg.select-all \.node
       ..append \svg:g
         ..
           .attr \transform 'scale(0)'
-          .transition!
-            .duration 1000
-            .ease \elastic
-            .attr \transform 'scale(1)'
+            .transition!
+              .duration 1000
+              .ease \elastic
+              .attr \transform 'scale(1)'
         ..append \svg:path
           .attr \fill \green
           .attr \d progress-arc end-angle: 0
@@ -108,21 +112,26 @@ refresh = !->
         .duration 100ms
         .style \stroke-width 10px
 
-  svg.select-all \.node .data nodes
+  svg.select-all \.node .data nodes, (.id)
+    ..enter!.append \svg:g
+      ..
+        .attr \id -> \node- + it.id
+        .attr \class \node
+      ..append \svg:g
+        ..
+          .attr \transform 'scale(0)'
+            .transition!
+              .duration 1000
+              .ease \elastic
+              .attr \transform 'scale(1)'
+        ..append \svg:circle
+          .style \fill -> "url(##{it.ip})"
+          .attr \r -> it.radius
     ..exit!
       .transition!.remove!
         .duration 1000ms
-        .attr \r 0px
-    ..enter!.append \svg:g
-      ..
-        .attr \class \node
-      ..append \svg:circle
-        .style \fill -> "url(##{it.ip})"
-        .attr \r 0px
-          .transition!
-            .duration 1000
-            .ease \elastic
-            .attr \r -> it.radius
+        .select \g
+          .attr \transform 'scale(0)'
 
   force.start!
 
@@ -131,16 +140,24 @@ refresh-chunks = !->
     .data chunks
       ..
         .transition!
-          .attr \fill -> if it.gotten then \#f5a873 else \#20293f
+          .attr \fill -> if it then \#f5a873 else \#20293f
       ..enter!.append \svg:path
         .attr \class \chunk
-        .attr \d -> chunk-arc start-angle: 2 * Math.PI * it.id / chunks.length, end-angle: 2 * Math.PI * (it.id + 1) / chunks.length
-        .attr \fill -> if it.gotten then \#f5a873 else \#20293f
-        .attr \fill-opacity 0
-        .transition!
-          .attr \fill-opacity 1
+        .attr \d (chunk, id) -> chunk-arc start-angle: 2 * Math.PI * id / chunks.length, end-angle: 2 * Math.PI * (id + 1) / chunks.length
+        .attr \fill -> if it then \#f5a873 else \#20293f
 
-window.add-peer = add-peer = !->
+refresh-peer-chunk = (peer) !->
+  svg.select "\#node-#{peer.id}" .select-all \g .select-all \.chunk
+    .data peer.chunks
+      ..
+        .transition!
+          .attr \fill -> if it then \#f5a873 else \#20293f
+      ..enter!.append \svg:path
+        .attr \class \chunk
+        .attr \d (chunk, id) -> peer-chunk-arc start-angle: 2 * Math.PI * id / chunks.length, end-angle: 2 * Math.PI * (id + 1) / chunks.length
+        .attr \fill -> if it then \#f5a873 else \#20293f
+
+add-peer = !->
   load-flag it.ip
 
   it
@@ -153,8 +170,9 @@ window.add-peer = add-peer = !->
   links.push source: root, target: it
 
   refresh!
+  refresh-peer-chunk it
 
-window.remove-peer = remove-peer = !->
+remove-peer = !->
   return unless ~(i = nodes.index-of it)
   nodes.splice i, 1
   for link, i in links
@@ -194,20 +212,60 @@ tween-progress = (transition, progress) !->
       d.progress-angle = interpolate t
       progress-arc end-angle: d.progress-angle
 
-on-torrent = (torrent) !->
-  for wire in torrent.swarm.wires
-    peer = id: uuid.v4!, ip: wire.remote-address
-    wire.peer = peer
-    add-peer peer
-    wire.once \close !->
+bitfield-to-array = (bitfield, length) -> for i til length then bitfield.get i
+
+on-wire = (wire, addr)!->
+  peer =
+    id: uuid.v4!
+    ip: addr
+    download-speed: speedometer!
+    upload-speed:   speedometer!
+    chunks: bitfield-to-array wire.peer-pieces, chunks.length
+
+  wire.peer = peer
+  add-peer peer
+
+  console.log peer
+
+  wire
+    #..on \choke   !-> console.log \choke
+    #..on \unchoke !-> console.log \unchoke
+
+    #..on \interested   !-> console.log \interested
+    #..on \uninterested !-> console.log \uninterested
+
+    ..on \have (id) !->
+      return if peer.chunks[id]
+      @peer.chunks[id] = true
+      refresh-peer-chunk @peer
+
+    ..on \bitfield !->
+      @peer.chunks = bitfield-to-array @peer-pieces, chunks.length
+      refresh-peer-chunk @peer
+
+    #..on \request  !-> console.log \request, arguments
+    #..on \piece    !-> console.log \piece, arguments
+
+    ..on \download !->
+      @peer.downloaded += it
+      @peer.download-speed it
+      #console.log 'Down:', (bytes-to-human @peer.download-speed!) + '\/s'
+
+    ..on \upload !->
+      @peer.uploaded += it
+      @peer.upload-speed it
+      #console.log 'Up:', (bytes-to-human @peer.upload-speed!) + '\/s'
+
+    ..once \close !->
       remove-peer wire.peer
 
-  torrent.on \wire (wire, addr) !->
-    peer = id: uuid.v4!, ip: addr
-    wire.peer = peer
-    add-peer peer
-    wire.once \close !->
-      remove-peer wire.peer
+on-torrent = (torrent) !->
+  chunks := bitfield-to-array torrent.bitfield, torrent.pieces.length
+
+  for wire in torrent.swarm.wires
+    on-wire wire, wire.remote-address
+
+  torrent.on \wire on-wire
 
   torrent.swarm.on \download !->
     svg.select \.node .select \path
@@ -217,13 +275,12 @@ on-torrent = (torrent) !->
     d3.select \#download-speed .text (bytes-to-human client.download-speed!) + '\/s'
 
     if torrent.progress is 1
-      chunks.for-each !-> it.gotten = true
+      chunks .= map -> true
       on-download-complete torrent.files[0]
       refresh-chunks!
       return
 
-    chunks.for-each (piece, id) !-> unless torrent.pieces[id]? then piece.gotten = true
-
+    chunks := bitfield-to-array torrent.bitfield, torrent.pieces.length
     refresh-chunks!
 
   torrent.swarm.on \upload   !->
@@ -291,6 +348,4 @@ else
       blob-URL := url
 
   client.add hash, !->
-    chunks := it.pieces.map (piece, id) -> id: id, gotten: false
-    refresh-chunks!
     on-torrent it

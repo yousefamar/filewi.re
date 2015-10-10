@@ -36,6 +36,7 @@
     "jade": "^1.11.0",
     "jadeify": "^4.4.0",
     "node-uuid": "^1.4.3",
+    "speedometer": "^0.1.4",
     "uglifyify": "^3.0.1",
     "watchify": "^3.4.0",
     "webtorrent": "^0.62.2"
