@@ -133,6 +133,7 @@ refresh = !->
           .attr \dominant-baseline \central
           .attr \fill \#e5e7e8
           .attr \dy, -(NODE_RADIUS + 15)
+          .style \text-shadow '0 0 0.5em #20293f'
           .text '▲  0 bytes/s'
         ..append \svg:text
           .attr \id -> "node-down-#{it.id}"
@@ -140,6 +141,7 @@ refresh = !->
           .attr \dominant-baseline \central
           .attr \fill \#e5e7e8
           .attr \dy NODE_RADIUS + 15
+          .style \text-shadow '0 0 0.5em #20293f'
           .text '▼  0 bytes/s'
     ..exit!
       .transition!.remove!
