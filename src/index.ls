@@ -127,6 +127,20 @@ refresh = !->
         ..append \svg:circle
           .style \fill -> "url(##{it.ip})"
           .attr \r -> it.radius
+        ..append \svg:text
+          .attr \id -> "node-up-#{it.id}"
+          .attr \text-anchor \middle
+          .attr \dominant-baseline \central
+          .attr \fill \#e5e7e8
+          .attr \dy, -(NODE_RADIUS + 15)
+          .text '▲  0 bytes/s'
+        ..append \svg:text
+          .attr \id -> "node-down-#{it.id}"
+          .attr \text-anchor \middle
+          .attr \dominant-baseline \central
+          .attr \fill \#e5e7e8
+          .attr \dy NODE_RADIUS + 15
+          .text '▼  0 bytes/s'
     ..exit!
       .transition!.remove!
         .duration 1000ms
@@ -145,6 +159,9 @@ refresh-chunks = !->
         .attr \class \chunk
         .attr \d (chunk, id) -> chunk-arc start-angle: 2 * Math.PI * id / chunks.length, end-angle: 2 * Math.PI * (id + 1) / chunks.length
         .attr \fill -> if it then \#f5a873 else \#20293f
+        .attr \fill-opacity 0
+          .transition!
+            .attr \fill-opacity 1
 
 refresh-peer-chunk = (peer) !->
   svg.select "\#node-#{peer.id}" .select-all \g .select-all \.chunk
@@ -201,7 +218,7 @@ client = new WebTorrent!
 bytes-to-human = do ->
   units = <[ bytes kB MB GB TB PB ]>
   (bytes) ->
-    return \0 unless bytes
+    return '0 bytes' unless bytes
     e = Math.floor (Math.log bytes) / Math.log 1024
     ((bytes / Math.pow 1024, e).to-fixed 2)  + ' ' + units[e]
 
@@ -225,7 +242,10 @@ on-wire = (wire, addr)!->
   wire.peer = peer
   add-peer peer
 
-  console.log peer
+  speed-updater = set-interval !->
+    d3.select "\#node-down-#{peer.id}" .text '▼  ' + (bytes-to-human peer.download-speed!) + '\/s'
+    d3.select "\#node-up-#{peer.id}" .text '▲  ' + (bytes-to-human peer.upload-speed!) + '\/s'
+  , 1000
 
   wire
     #..on \choke   !-> console.log \choke
@@ -246,18 +266,17 @@ on-wire = (wire, addr)!->
     #..on \request  !-> console.log \request, arguments
     #..on \piece    !-> console.log \piece, arguments
 
-    ..on \download !->
-      @peer.downloaded += it
-      @peer.download-speed it
-      #console.log 'Down:', (bytes-to-human @peer.download-speed!) + '\/s'
-
     ..on \upload !->
-      @peer.uploaded += it
+      @peer.download-speed it
+      d3.select "\#node-down-#{@peer.id}" .text '▼  ' + (bytes-to-human @peer.download-speed!) + '\/s'
+
+    ..on \download !->
       @peer.upload-speed it
-      #console.log 'Up:', (bytes-to-human @peer.upload-speed!) + '\/s'
+      d3.select "\#node-up-#{@peer.id}" .text '▲  ' + (bytes-to-human @peer.upload-speed!) + '\/s'
 
     ..once \close !->
-      remove-peer wire.peer
+      clear-interval speed-updater
+      remove-peer @peer
 
 on-torrent = (torrent) !->
   chunks := bitfield-to-array torrent.bitfield, torrent.pieces.length
@@ -285,6 +304,11 @@ on-torrent = (torrent) !->
 
   torrent.swarm.on \upload   !->
     d3.select \#upload-speed   .text (bytes-to-human client.upload-speed!) + '\/s'
+
+  set-interval !->
+    d3.select \#upload-speed   .text (bytes-to-human client.upload-speed!) + '\/s'
+    d3.select \#download-speed .text (bytes-to-human client.download-speed!) + '\/s'
+  , 1000
 
   d3.select \#preview-button .on \click ->
     alert 'Coming soon!'
@@ -335,7 +359,6 @@ else
   blob-URL = null
 
   on-download-complete = (file) !->
-    d3.select \#download-speed .text 0
     d3.select \#buttons
       .style \display \inline
 
