@@ -158,7 +158,7 @@ refresh = !->
   simulation
     .nodes nodes
 
-  simulation.force \link
+  simulation.force \link d3.force-link!.id (d) -> d.id
     .links links
     .strength 0.01
 
@@ -230,6 +230,8 @@ simulation.on \tick ->
 hash = window.location.pathname.substr 1
 
 client = new WebTorrent!
+  ..on \warning console.warn
+  ..on \error   console.error
 
 bytes-to-human = do ->
   units = <[ bytes kB MB GB TB PB ]>
@@ -248,6 +250,7 @@ tween-progress = (transition, progress) !->
 bitfield-to-array = (bitfield, length) -> for i til length then bitfield.get i
 
 on-wire = (wire, addr)!->
+  console.log \wire
   peer =
     id: uuid.v4!
     ip: addr
