@@ -4,12 +4,12 @@
   "description": "P2P file sharing on the web",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "watchify --verbose -t browserify-livescript -t jadeify -g uglifyify -o build/index.min.js src/index.ls",
+    "watch": "watchify --verbose -t browserify-livescript -t pugify -g uglifyify -o build/index.min.js src/index.ls",
     "start": "lsc server.ls"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Paraknight/filewi.re.git"
+    "url": "git+https://github.com/yousefamar/filewi.re.git"
   },
   "keywords": [
     "p2p",
@@ -25,25 +25,25 @@
   "author": "Yousef Amar <yousef@amar.io> (http://yousefamar.com/)",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Paraknight/filewi.re/issues"
+    "url": "https://github.com/yousefamar/filewi.re/issues"
   },
-  "homepage": "https://github.com/Paraknight/filewi.re#readme",
+  "homepage": "https://github.com/yousefamar/filewi.re#readme",
   "devDependencies": {
-    "browserify": "^11.2.0",
-    "browserify-livescript": "^0.2.3",
-    "d3": "^3.5.6",
-    "dropzone": "^4.0.1",
-    "jade": "^1.11.0",
-    "jadeify": "^4.4.0",
-    "node-uuid": "^1.4.3",
-    "speedometer": "^0.1.4",
-    "uglifyify": "^3.0.1",
-    "watchify": "^3.4.0",
-    "webtorrent": "^0.62.2"
+    "browserify": "^16.5.0",
+    "browserify-livescript": "^0.2.4",
+    "d3": "^5.15.0",
+    "dropzone": "^5.7.0",
+    "speedometer": "^1.1.0",
+    "uglifyify": "^5.0.2",
+    "watchify": "^3.11.1",
+    "webtorrent": "^0.107.17"
   },
   "dependencies": {
-    "express": "^4.13.3",
-    "geoip-lite": "^1.1.6",
-    "livescript": "^1.4.0"
+    "express": "^4.17.1",
+    "geoip-lite": "^1.4.0",
+    "livescript": "^1.6.0",
+    "pug": "^2.0.4",
+    "pugify": "^2.2.0",
+    "uuid": "^7.0.2"
   }
 }

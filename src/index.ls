@@ -1,4 +1,4 @@
-require! { querystring, d3, 'webtorrent': WebTorrent, dropzone: Dropzone, 'node-uuid': uuid, jade, speedometer }
+require! { querystring, d3, 'webtorrent': WebTorrent, dropzone: Dropzone, uuid, pug, speedometer }
 
 const NODE_RADIUS = 64px
 
@@ -328,10 +328,10 @@ on-torrent = (torrent) !->
   #  it.append-to \body
 
 
-require! './templates/stats.jade'
+require! './templates/stats.pug'
 
 unless hash.match /\b([0-9a-f]{40})\b/
-  require! './templates/upload.jade'
+  require! './templates/upload.pug'
 
   d3.select \#root-body .html upload!
 
