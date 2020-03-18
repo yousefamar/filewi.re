@@ -15,4 +15,4 @@ express!
     res.send-file 'build/res/flags/' + geo.country.to-lower-case! + '.png' root: './'
 
   ..use (req, res) !-> res.send-file 'build/index.html' root: './'
-  ..listen (process.env.PORT or 9980)
+  ..listen (process.env.PORT or 8080)

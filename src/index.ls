@@ -11,8 +11,8 @@ window.add-event-listener \resize onresize = !->
   svg
     .attr \width  width
     .attr \height height
-  force.size [ width, height ]
-  force.start!
+  simulation.force \center d3.force-center width / 2, height / 2
+  simulation.restart!
 
 nodes = [{}]
 links = []
@@ -37,7 +37,7 @@ load-flag = (ip) !->
   svg.append \defs
     .append \pattern
       ..
-        .attr \id ip
+        .attr \id '' + ip
         .attr \width  64
         .attr \height 64
       ..append \svg:rect
@@ -50,16 +50,16 @@ load-flag = (ip) !->
         .attr \xlink:href "flag?ip=#ip"
 
 
-progress-arc = d3.svg.arc!
+progress-arc = d3.arc!
   .inner-radius 105px
   .outer-radius 120px
   .start-angle  0rad
 
-chunk-arc = d3.svg.arc!
+chunk-arc = d3.arc!
   .inner-radius 100px
   .outer-radius 105px
 
-peer-chunk-arc = d3.svg.arc!
+peer-chunk-arc = d3.arc!
   .inner-radius 64px
   .outer-radius 67px
 
@@ -74,7 +74,7 @@ svg.select-all \.node
           .attr \transform 'scale(0)'
             .transition!
               .duration 1000
-              .ease \elastic
+              .ease d3.easeElastic
               .attr \transform 'scale(1)'
         ..append \svg:path
           .attr \fill \green
@@ -92,11 +92,17 @@ svg.select-all \.node
             .style \height \100%
 
 
-force = d3.layout.force!
-  .charge (d, i) -> if i then -500 else -10000
-  .link-strength 0.01
+simulation = d3.force-simulation!
+  .force \link   d3.force-link!.id (d) -> d.id
+  .force \charge d3.force-many-body!.strength -2000
+  .force \center d3.force-center width / 2, height / 2
+
+simulation
   .nodes nodes
+
+simulation.force \link
   .links links
+  .strength 0.01
 
 refresh = !->
   svg.select-all \.link .data links
@@ -122,7 +128,7 @@ refresh = !->
           .attr \transform 'scale(0)'
             .transition!
               .duration 1000
-              .ease \elastic
+              .ease d3.easeElastic
               .attr \transform 'scale(1)'
         ..append \svg:circle
           .style \fill -> "url(##{it.ip})"
@@ -149,7 +155,14 @@ refresh = !->
         .select \g
           .attr \transform 'scale(0)'
 
-  force.start!
+  simulation
+    .nodes nodes
+
+  simulation.force \link
+    .links links
+    .strength 0.01
+
+  simulation.restart!
 
 refresh-chunks = !->
   svg.select \#root-node .select-all \.chunk
@@ -201,16 +214,17 @@ remove-peer = !->
   refresh!
 
 onresize!
-force.start!
 
-force.on \tick ->
+simulation.on \tick ->
   svg.select-all \.link
+    .data links
     .attr \x1 -> it.source.x
     .attr \y1 -> it.source.y
     .attr \x2 -> it.target.x
     .attr \y2 -> it.target.y
 
   svg.select-all \.node
+    .data nodes
     .attr \transform -> "translate(#{it.x}, #{it.y})"
 
 hash = window.location.pathname.substr 1
@@ -283,17 +297,17 @@ on-wire = (wire, addr)!->
 on-torrent = (torrent) !->
   chunks := bitfield-to-array torrent.bitfield, torrent.pieces.length
 
-  for wire in torrent.swarm.wires
+  for wire in torrent.wires
     on-wire wire, wire.remote-address
 
   torrent.on \wire on-wire
 
-  torrent.swarm.on \download !->
+  torrent.on \download !->
     svg.select \.node .select \path
       .transition!
         .call tween-progress, torrent.progress
 
-    d3.select \#download-speed .text (bytes-to-human client.download-speed!) + '\/s'
+    d3.select \#download-speed .text (bytes-to-human client.download-speed) + '\/s'
 
     if torrent.progress is 1
       chunks .= map -> true
@@ -304,12 +318,12 @@ on-torrent = (torrent) !->
     chunks := bitfield-to-array torrent.bitfield, torrent.pieces.length
     refresh-chunks!
 
-  torrent.swarm.on \upload   !->
-    d3.select \#upload-speed   .text (bytes-to-human client.upload-speed!) + '\/s'
+  torrent.on \upload   !->
+    d3.select \#upload-speed   .text (bytes-to-human client.upload-speed) + '\/s'
 
   set-interval !->
-    d3.select \#upload-speed   .text (bytes-to-human client.upload-speed!) + '\/s'
-    d3.select \#download-speed .text (bytes-to-human client.download-speed!) + '\/s'
+    d3.select \#upload-speed   .text (bytes-to-human client.upload-speed) + '\/s'
+    d3.select \#download-speed .text (bytes-to-human client.download-speed) + '\/s'
   , 1000
 
   d3.select \#preview-button .on \click ->
