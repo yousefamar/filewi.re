@@ -158,7 +158,7 @@ refresh = !->
   simulation
     .nodes nodes
 
-  simulation.force \link d3.force-link!.id (d) -> d.id
+  simulation.force \link
     .links links
     .strength 0.01
 
