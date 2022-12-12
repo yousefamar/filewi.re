@@ -39,7 +39,7 @@
     "webtorrent": "^0.107.17"
   },
   "dependencies": {
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "geoip-lite": "^1.4.0",
     "livescript": "^1.6.0",
     "pug": "^2.0.4",
