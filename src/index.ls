@@ -1,4 +1,4 @@
-require! { querystring, d3, 'webtorrent': WebTorrent, dropzone: Dropzone, uuid, pug, speedometer }
+require! { querystring, d3, 'webtorrent': WebTorrent, dropzone: Dropzone, speedometer }
 
 const NODE_RADIUS = 64px
 
@@ -252,7 +252,7 @@ bitfield-to-array = (bitfield, length) -> for i til length then bitfield.get i
 on-wire = (wire, addr)!->
   console.log \wire
   peer =
-    id: uuid.v4!
+    id: crypto.randomUUID!
     ip: addr
     download-speed: speedometer!
     upload-speed:   speedometer!

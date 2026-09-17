@@ -4,8 +4,9 @@
   "description": "P2P file sharing on the web",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "watchify --verbose -t browserify-livescript -t pugify -g uglifyify -o build/index.min.js src/index.ls",
-    "start": "lsc server.ls"
+    "watch": "watchify --verbose -t browserify-livescript -t pugify -o build/index.min.js src/index.ls",
+    "start": "lsc server.ls",
+    "build": "browserify -t browserify-livescript -t pugify src/index.ls | terser -cm -o build/index.min.js"
   },
   "repository": {
     "type": "git",
@@ -29,21 +30,24 @@
   },
   "homepage": "https://github.com/yousefamar/filewi.re#readme",
   "devDependencies": {
-    "browserify": "^16.5.0",
+    "browserify": "^17.0.1",
     "browserify-livescript": "^0.2.4",
-    "d3": "^5.15.0",
-    "dropzone": "^5.7.0",
+    "d3": "^5.16.0",
+    "dropzone": "5.7.0",
     "speedometer": "^1.1.0",
-    "uglifyify": "^5.0.2",
-    "watchify": "^3.11.1",
-    "webtorrent": "^0.107.17"
+    "watchify": "^4.0.0",
+    "webtorrent": "^1.9.7",
+    "terser": "^5.44.0",
+    "pug": "^3.0.4"
   },
   "dependencies": {
-    "express": "^4.17.1",
-    "geoip-lite": "^1.4.0",
+    "express": "^4.21.2",
+    "geoip-lite": "^1.4.10",
     "livescript": "^1.6.0",
-    "pug": "^2.0.4",
-    "pugify": "^2.2.0",
-    "uuid": "^7.0.2"
+    "pugify": "^2.2.0"
+  },
+  "overrides": {
+    "pug": "^3.0.4",
+    "ip-address": "^10.4.0"
   }
 }
