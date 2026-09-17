@@ -4,9 +4,9 @@
   "description": "P2P file sharing on the web",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "watchify --verbose -t browserify-livescript -t pugify -o build/index.min.js src/index.ls",
+    "watch": "watchify --verbose -t browserify-livescript -t pugify -o index.min.js src/index.ls",
     "start": "lsc server.ls",
-    "build": "browserify -t browserify-livescript -t pugify src/index.ls | terser -cm -o build/index.min.js"
+    "build": "browserify -t browserify-livescript -t pugify src/index.ls | terser -cm -o index.min.js"
   },
   "repository": {
     "type": "git",

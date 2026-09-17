@@ -1,7 +1,7 @@
 require! { express, 'geoip-lite': geoip }
 
 express!
-  ..use express.static 'build'
+  ..use express.static '.'
 
   ..get '*/flag' (req, res) !->
     unless req.query.ip?
@@ -10,9 +10,9 @@ express!
       return
     geo = geoip.lookup req.query.ip
     unless geo?
-      res.send-file 'build/res/flags/??.png' root: './'
+      res.send-file 'res/flags/??.png' root: './'
       return
-    res.send-file 'build/res/flags/' + geo.country.to-lower-case! + '.png' root: './'
+    res.send-file 'res/flags/' + geo.country.to-lower-case! + '.png' root: './'
 
-  ..use (req, res) !-> res.send-file 'build/index.html' root: './'
+  ..use (req, res) !-> res.send-file 'index.html' root: './'
   ..listen (process.env.PORT or 8080)
