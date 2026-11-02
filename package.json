@@ -48,6 +48,6 @@
   },
   "overrides": {
     "pug": "^3.0.4",
-    "ip-address": "^10.4.0"
+    "ip-address": "^10.7.4"
   }
 }
